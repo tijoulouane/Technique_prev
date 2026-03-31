@@ -53,8 +53,9 @@ yy <- ts(data = base$Ventes,
          start = c(2005, 12),   
          frequency = 12)
 ```
+# 1/ Analyse exploratoire 
 
-## Présentation de la série 
+## A) Présentation de la série 
 ```{r, warning=FALSE, message=FALSE}
 plot(yy,
      main = "Ventes de véhicules aux États-Unis (TOTALNSA)",
@@ -64,7 +65,7 @@ plot(yy,
      lwd  = 1.5)
 ```
 
-# Détection des points atypiques 
+## B) Identification et analyse économique des points atypiques 
 
 ```{r, include=FALSE, warning=FALSE, message=FALSE}
 fit<- tso(yy, tsmethod = "auto.arima", maxit.oloop = 5)
@@ -110,3 +111,57 @@ La détection des points atypiques avec la fonction tso() a mis en évidence qua
 
 Ces résultats confirment que la série TOTALNSA est fortement sensible aux grands chocs macroéconomiques et aux crises sanitaires ou financières.
 
+## C) Statistiques descriptives 
+
+```{r}
+library(dplyr)
+library(moments)
+library(knitr)
+library(kableExtra)
+
+# Série corrigée (yadj de tso)
+yy_corrigee <- fit$yadj
+
+# Calcul des statistiques
+stats_full <- data.frame(
+  Statistique = c("Nombre d'observations", "NAs", "Minimum", "Maximum", 
+                  "Moyenne", "Médiane", "Somme", "Variance", 
+                  "Écart-type", "Skewness", "Kurtosis"),
+  Valeur = c(
+    length(yy_corrigee),
+    sum(is.na(yy_corrigee)),
+    round(min(yy_corrigee), 4),
+    round(max(yy_corrigee), 4),
+    round(mean(yy_corrigee), 4),
+    round(median(yy_corrigee), 4),
+    round(sum(yy_corrigee), 4),
+    round(var(yy_corrigee), 4),
+    round(sd(yy_corrigee), 4),
+    round(skewness(yy_corrigee), 4),
+    round(kurtosis(yy_corrigee), 4)
+  )
+)
+
+# Affichage du tableau avec kableExtra
+stats_full %>%
+  kable("html", caption = "Statistiques descriptives complètes de la série TOTALNSA corrigée") %>%
+  kable_styling(bootstrap_options = c("striped","hover","condensed","responsive"),
+                full_width = FALSE,
+                position = "center") %>%
+  column_spec(1, bold = TRUE, color = "steelblue") %>%
+  column_spec(2, color = "darkgreen")
+```
+
+## D) Détection de la saisonalité 
+## E) Désaisonnalisation et décomposition de la série corrigée 
+
+# 2/ Prévision de la série saisonnière 
+## A) Estimmations et prévisions des modèles 
+### i) 
+## B) Synthèse 
+
+# 3/ Evolution des prévisions des différents modèles 
+# 4/ Qualité de prévision
+# 5/ Test de précision
+# 6/ Prévision sur 1 an 
+# 7/ Conclusion 
