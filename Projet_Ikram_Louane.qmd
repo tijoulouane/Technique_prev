@@ -1,12 +1,21 @@
 ---
 title: "Projet_Ikram_Louane"
-format: html
-editor: visual
+format:
+  pdf:
+    toc: true
+    toc_depth: 2
+    toc-title: "Sommaire"
+    code-fold: true
+    echo: false
+    results: "asis"
+    text-justify: true
+    highlight: true
+    
 ---
 
-# Packages
 
-```{r}
+```{r, include=FALSE, warning=FALSE, message=FALSE}
+# Import des packages
 library(readr)
 library(dplyr)
 library(forecast)
@@ -16,34 +25,37 @@ library(kableExtra)
 ```
 
 
-# Import des données
 
-```{r}
+
+```{r, include=FALSE, warning=FALSE, message=FALSE}
+# Import des données
 base <- read_csv("TOTALNSA.csv")
 ```
 
+
+```{r, include=FALSE, warning=FALSE, message=FALSE}
 # Renommer les colonnes
-```{r}
 base <- base %>%
   rename(
     Date = observation_date,
     Ventes = TOTALNSA)
-```
 
 # Nettoyage 
-
-```{r}
 base$Date <- as.Date(base$Date)
-head(base)
 ```
+
+
+
+```{r, include=FALSE, warning=FALSE, message=FALSE}
 # Série temporelle 
-```{r}
+
 yy <- ts(data = base$Ventes,
          start = c(2005, 12),   
          frequency = 12)
 ```
 
-```{r}
+## Présentation de la série 
+```{r, warning=FALSE, message=FALSE}
 plot(yy,
      main = "Ventes de véhicules aux États-Unis (TOTALNSA)",
      ylab = "Millions de véhicules",
@@ -51,9 +63,10 @@ plot(yy,
      col  = "steelblue",
      lwd  = 1.5)
 ```
+
 # Détection des points atypiques 
 
-```{r}
+```{r, include=FALSE, warning=FALSE, message=FALSE}
 fit<- tso(yy, tsmethod = "auto.arima", maxit.oloop = 5)
 ```
 
@@ -64,6 +77,8 @@ summary(fit)
 fit$outliers
 
 ```
+
+
 ```{r}
 outliers_table <- fit$outliers |>
   dplyr::mutate(
@@ -84,6 +99,7 @@ outliers_table |>
   column_spec(3)
 
 ```
+
 La détection des points atypiques avec la fonction tso() a mis en évidence quatre perturbations significatives. Les plus importants sont :
 
 - Février 2020 (TC) : effet temporaire lié au début de la pandémie de COVID-19, provoquant une chute temporaire des ventes.
@@ -93,3 +109,4 @@ La détection des points atypiques avec la fonction tso() a mis en évidence qua
 - Juillet 2009 (AO) : rebond post-crise financière de 2008, soutenu par des politiques de relance économique, notamment la prime à la casse aux États-Unis.
 
 Ces résultats confirment que la série TOTALNSA est fortement sensible aux grands chocs macroéconomiques et aux crises sanitaires ou financières.
+
