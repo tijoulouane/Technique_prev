@@ -12,55 +12,92 @@ format:
     highlight: true
     
 ---
-
-coucou 
+# Packages
 
 ```{r}
-# Packages
 library(readr)
 library(dplyr)
 library(forecast)
 library(tsoutliers)
+library(knitr)
+library(kableExtra)
+```
+
 
 # Import des données
-data_us <- read_csv("TOTALNSA.csv")
+
+```{r}
+base <- read_csv("TOTALNSA.csv")
+```
 
 # Renommer les colonnes
-data_us <- data_us %>%
+```{r}
+base <- base %>%
   rename(
     Date = observation_date,
-    Ventes = TOTALNSA
-  )
+    Ventes = TOTALNSA)
+```
 
-# Transformer la date en format Date
-data_us$Date <- as.Date(data_us$Date)
+# Nettoyage 
 
-# Vérification
-head(data_us)
-
-# Création de la série temporelle
-yy <- ts(data = data_us$Ventes,
-         start = c(2005, 12),   # première observation
+```{r}
+base$Date <- as.Date(base$Date)
+head(base)
+```
+# Série temporelle 
+```{r}
+yy <- ts(data = base$Ventes,
+         start = c(2005, 12),   
          frequency = 12)
+```
 
-# Plot de la série
+```{r}
 plot(yy,
-     main = "Ventes de véhicules aux États-Unis (TOTALSA)",
+     main = "Ventes de véhicules aux États-Unis (TOTALNSA)",
      ylab = "Millions de véhicules",
      xlab = "Temps",
      col  = "steelblue",
      lwd  = 1.5)
+```
+# Détection des points atypiques 
 
-# Détection des points atypiques
-fitV <- tso(yy, tsmethod = "auto.arima", maxit.oloop = 5)
-
-# Résultats
-plot(fitV)
-summary(fitV)
-
-fitV$outliers
-
-
-
+```{r}
+fit<- tso(yy, tsmethod = "auto.arima", maxit.oloop = 5)
 ```
 
+```{r, results='hide'}
+plot(fit)
+summary(fit)
+
+fit$outliers
+
+```
+```{r}
+outliers_table <- fit$outliers |>
+  dplyr::mutate(
+    Date = as.character(time),      
+    Type = type,                    
+    t_stat = round(tstat, 2) )|>
+  dplyr::select(Date, Type, t_stat)  
+  
+# Affichage
+
+outliers_table |>
+  kable("html", caption = "Points atypiques détectés dans la série TOTALNSA") |>
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+                full_width = FALSE,
+                position = "center") |>
+  column_spec(1) |>
+  column_spec(2) |>
+  column_spec(3)
+
+```
+La détection des points atypiques avec la fonction tso() a mis en évidence quatre perturbations significatives. Les plus importants sont :
+
+- Février 2020 (TC) : effet temporaire lié au début de la pandémie de COVID-19, provoquant une chute temporaire des ventes.
+
+- Mars 2020 (AO) : choc ponctuel immédiat dû à l’arrêt de la production automobile pendant les confinements.
+
+- Juillet 2009 (AO) : rebond post-crise financière de 2008, soutenu par des politiques de relance économique, notamment la prime à la casse aux États-Unis.
+
+Ces résultats confirment que la série TOTALNSA est fortement sensible aux grands chocs macroéconomiques et aux crises sanitaires ou financières.
