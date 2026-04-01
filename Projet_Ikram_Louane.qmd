@@ -24,6 +24,10 @@ library(knitr)
 library(kableExtra)
 library(moments)
 library(fBasics)
+library(TSA)
+library(seasonal)
+library(seastests)
+library(RJDemetra)
 ```
 
 
@@ -139,9 +143,99 @@ stats_full |>
                 position = "center") 
   
 ```
+```{r}
+df <- tibble(value = as.numeric(yy_corrigee))
+ggplot(
+  df, aes(y = value)) +
+  geom_boxplot(fill = "tomato", alpha = 0.5) +
+  labs(title = "Boxplot de la série corrigée", y = "Valeur") +
+  theme_minimal()
+```
 
 ## D) Détection de la saisonalité 
+
+```{r}
+dyy <- diff(yy_corrigee, differences = 1)
+```
+
+
+```{r}
+plot(yy_corrigee,
+     main = "Série corrigée des ventes de véhicules",
+     ylab = "Millions de véhicules",
+     xlab = "Temps",
+     col = "steelblue",
+     lwd = 1.5)
+```
+On observe sur le graphique des fluctuations régulières qui semblent se répéter chaque année, ce qui suggère la présence d’une composante saisonnière.
+
+```{r}
+decomp <- decompose(yy_corrigee)
+plot(decomp)
+```
+La décomposition met en évidence une composante saisonnière stable au cours du temps, confirmant visuellement la présence de saisonnalité dans la série.
+
+```{r}
+
+periodogram(yy_corrigee, 
+            main = "Périodogramme de la série en niveau")
+
+periodogram(dyy, 
+            main = "Périodogramme de la série en différence première")
+
+```
+
+
+```{r}
+combined_test(yy_corrigee)
+seasdum(yy_corrigee)
+
+```
+
+Afin de tester la saisonnalité pour ensuite savoir s'il est nécessaire ou non de désaisonnaliser la série, nous testons sous l'hypothèse nulle d'absence de saisonnalité le test de webel-Ollech ainsi que le F-test sur des varaibles dichotomiques saisonnières. Les deux test affirme par leurs p-value égale à 0 la présence de saisonnalité.
+
+
+
+L’ensemble des analyses, visuelles et statistiques, confirme la présence d’une saisonnalité dans la série des ventes de véhicules. Cette saisonnalité est annuelle et doit être prise en compte dans les modèles de prévision.
+
+
+
+
+Tout d'abord avant toute modélisation on cherche à savoir si nous sommes en présence d'un schéma additif ou multiplicatif.
+Nous allons faire ce choix grâce au test de log-level.
+
+```{r}
+myregx13 <- regarima_x13(yy_corrigee, spec="RG5c")
+s_transform(myregx13)
+```
+Le résultat nous informe de ne pas réaliser une transformation en log et la différence d'AICc entre la spécification en log et niveau est de -2 
+
+```{r}
+summary(myregx13)
+```
+Ce résultat nous indique que il n'y a pas eu de transformation log, de plus il affirme qu'il y a des effets de JOV ainsi que de l'année bisextile mais pas d'éffet de paque 
+
+```{r}
+ggtsdisplay(yy_corrigee)
+```
+
+RESUMER DES TESTS PLUS PERIODOGRAMME 
+
+```{r}
+ggseasonplot(yy_corrigee)
+```
+
+
 ## E) Désaisonnalisation et décomposition de la série corrigée 
+
+
+```{r}
+myspec <- x13_spec("RSA5c")
+mysax13 <- x13(yy_corrigee, myspec)
+summary(mysax13$regarima)
+mysax13
+plot(mysax13$final)
+```
 
 # 2/ Prévision de la série saisonnière 
 ## A) Estimmations et prévisions des modèles 
