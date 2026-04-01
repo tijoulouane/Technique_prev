@@ -22,9 +22,9 @@ library(forecast)
 library(tsoutliers)
 library(knitr)
 library(kableExtra)
+library(moments)
+library(fBasics)
 ```
-
-
 
 
 ```{r, include=FALSE, warning=FALSE, message=FALSE}
@@ -45,17 +45,17 @@ base$Date <- as.Date(base$Date)
 ```
 
 
-
 ```{r, include=FALSE, warning=FALSE, message=FALSE}
 # Série temporelle 
 
 yy <- ts(data = base$Ventes,
-         start = c(2005, 12),   
+         start = c(2006, 01),   
          frequency = 12)
 ```
-# 1/ Analyse exploratoire 
 
+# 1/ Analyse exploratoire 
 ## A) Présentation de la série 
+
 ```{r, warning=FALSE, message=FALSE}
 plot(yy,
      main = "Ventes de véhicules aux États-Unis (TOTALNSA)",
@@ -76,7 +76,6 @@ plot(fit)
 summary(fit)
 
 fit$outliers
-
 ```
 
 
@@ -94,10 +93,7 @@ outliers_table |>
   kable("html", caption = "Points atypiques détectés dans la série TOTALNSA") |>
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"),
                 full_width = FALSE,
-                position = "center") |>
-  column_spec(1) |>
-  column_spec(2) |>
-  column_spec(3)
+                position = "center") 
 
 ```
 
@@ -114,42 +110,34 @@ Ces résultats confirment que la série TOTALNSA est fortement sensible aux gran
 ## C) Statistiques descriptives 
 
 ```{r}
-library(dplyr)
-library(moments)
-library(knitr)
-library(kableExtra)
-
-# Série corrigée (yadj de tso)
+# Série corrigée des outliers 
 yy_corrigee <- fit$yadj
 
 # Calcul des statistiques
 stats_full <- data.frame(
-  Statistique = c("Nombre d'observations", "NAs", "Minimum", "Maximum", 
-                  "Moyenne", "Médiane", "Somme", "Variance", 
-                  "Écart-type", "Skewness", "Kurtosis"),
+  Statistique = c("Nombre d'observations", "Valeurs manquantes", "Minimum", "Maximum", "Moyenne", "Médiane", "Variance",  "Écart-type", "Skewness", "Kurtosis"),
+  
   Valeur = c(
-    length(yy_corrigee),
-    sum(is.na(yy_corrigee)),
-    round(min(yy_corrigee), 4),
-    round(max(yy_corrigee), 4),
-    round(mean(yy_corrigee), 4),
-    round(median(yy_corrigee), 4),
-    round(sum(yy_corrigee), 4),
-    round(var(yy_corrigee), 4),
-    round(sd(yy_corrigee), 4),
-    round(skewness(yy_corrigee), 4),
-    round(kurtosis(yy_corrigee), 4)
-  )
-)
+    format(length(yy_corrigee),scientific = FALSE),                
+    format(sum(is.na(yy_corrigee)),scientific = FALSE),             
+    round(min(yy_corrigee), 2),          
+    round(max(yy_corrigee), 2),          
+    round(mean(yy_corrigee), 2),         
+    round(median(yy_corrigee), 2),       
+    round(var(yy_corrigee), 2),          
+    round(sd(yy_corrigee), 2),           
+    round(skewness(yy_corrigee), 2),     
+    round(kurtosis(yy_corrigee), 2)),
+  stringsAsFactors = FALSE)
+
 
 # Affichage du tableau avec kableExtra
-stats_full %>%
-  kable("html", caption = "Statistiques descriptives complètes de la série TOTALNSA corrigée") %>%
+stats_full |>
+  kable("html", caption = "Statistiques descriptives complètes de la série TOTALNSA corrigée") |>
   kable_styling(bootstrap_options = c("striped","hover","condensed","responsive"),
                 full_width = FALSE,
-                position = "center") %>%
-  column_spec(1, bold = TRUE, color = "steelblue") %>%
-  column_spec(2, color = "darkgreen")
+                position = "center") 
+  
 ```
 
 ## D) Détection de la saisonalité 
