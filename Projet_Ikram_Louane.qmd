@@ -109,6 +109,8 @@ La détection des points atypiques avec la fonction tso() a mis en évidence qua
 
 - Juillet 2009 (AO) : rebond post-crise financière de 2008, soutenu par des politiques de relance économique, notamment la prime à la casse aux États-Unis.
 
+_ LS > changement de niveau 
+
 Ces résultats confirment que la série TOTALNSA est fortement sensible aux grands chocs macroéconomiques et aux crises sanitaires ou financières.
 
 ## C) Statistiques descriptives 
