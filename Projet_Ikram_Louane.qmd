@@ -171,7 +171,7 @@ Le boxplot met en évidence une dispersion importante des ventes autour de la m�
 On observe également une valeur atypique basse, liée à des épisodes de chute des ventes lors de crises économiques, notamment en 2008-2009 et en 2020.
 Enfin, la distribution est légèrement asymétrique vers le bas, en cohérence avec la skewness négative.
 
-## D) Détection de la saisonalité 
+## D) Détection de la saisonnalité 
 
 ```{r}
 dyy <- diff(yy_corrigee, differences = 1)
@@ -281,11 +281,8 @@ Enfin, la composante irrégulière reste modérée, ce qui indique une bonne qua
 
 
 # 2/ Prévision de la série saisonnière 
-
-La série utilisée pour les prévisions est la série désaisonnalisée obtenue par la méthode X13-SARIMA-SEATS.
-
-## A) Estimmations et prévisions des modèles 
-
+Prévision de la série saisonnière corrigée des points atypiques sur une année 
+## A) Estimations et prévisions des modèles 
 ### i) les méthodes Naïve, X13-SARIMA-SEATS, STL et  STS.   Commenter les modèles X13-SARIMA-SEATS (modèle SARIMA, log/level,  …) et STS (variance : level, slope, seas, epsilon)  
 
 #### Méthode naïve 
@@ -312,7 +309,7 @@ decomp_stl <- stl(yy_corrigee, s.window = "periodic")
 plot(decomp_stl)
 
 fit_stl <- stlm(yy_corrigee, s.window = "periodic")
-prev_stl <- forecast(fit_stl, h = h)
+prev_stl <- forecast(fit_stl, h = 12)
 prev_stl
 plot(prev_stl, main = "Prévision par STL")
 ```
@@ -325,7 +322,7 @@ fit_sts <- StructTS(yy_corrigee)
 fit_sts
 plot(cbind(fitted(fit_sts), residuals(fit_sts)))
 
-prev_sts <- forecast(fit_sts, h = h)
+prev_sts <- forecast(fit_sts, h = 12)
 prev_sts
 plot(prev_sts, main = "Prévision par STS")
 ```
@@ -334,10 +331,10 @@ plot(prev_sts, main = "Prévision par STS")
 
 ### ii) les méthodes de lissage exponentiel : Holt-Winters, ETS, TBATS,  ADAM ETS et ADAM ETS SARIMA. Commenter ces modèles. 
 
-#### Holt-winter 
+#### Holt-winters 
 
 ```{r}
-fit_hw <- HoltWinters(yy_corrigee, beta = TRUE, gamma = FALSE)
+fit_hw <- HoltWinters(yy_corrigee, seasonal = "add")
 fit_hw
 
 prev_hw <- forecast(fit_hw, h = 12)
@@ -375,7 +372,7 @@ plot(prev_tbats, main = "Prévision TBATS")
 #### ADAM ETS 
 
 ```{r}
-fit_adam_ets <- auto.adam(yy_corrigee, model = "ZZN", lags = 1)
+fit_adam_ets <- auto.adam(yy_corrigee, model = "MAdA", lags = c(1,12), select = TRUE)
 fit_adam_ets
 summary(fit_adam_ets)
 plot(fit_adam_ets)
@@ -390,11 +387,11 @@ plot(prev_adam_ets, main = "Prévision ADAM ETS")
 ```{r}
 fit_adam_arima <- auto.adam(
   yy_corrigee,
-  model = "ZZN",
-  lags = c(1, 12),
+  model = "MAdA",
+  lags = c(1,12),
   orders = list(ar = c(3,3), i = c(2), ma = c(3,3)),
-  select = TRUE)
-
+  select = TRUE
+)
 fit_adam_arima
 summary(fit_adam_arima)
 plot(fit_adam_arima)
