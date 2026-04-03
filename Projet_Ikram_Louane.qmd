@@ -25,8 +25,10 @@ library(kableExtra)
 library(moments)
 library(fBasics)
 library(TSA)
+library(ggplot2)
 library(seasonal)
 library(seastests)
+library(smooth)
 library(RJDemetra)
 ```
 
@@ -145,6 +147,18 @@ stats_full |>
                 position = "center") 
   
 ```
+La série corrigée des points atypiques comporte 240 observations sans valeurs manquantes, ce qui garantit une base de données complète et exploitable pour l’analyse.
+
+Le niveau moyen des ventes de véhicules s’élève à 1367,02 milliers d’unités, tandis que la médiane est légèrement supérieure (1408,54). Cette différence suggère une légère asymétrie dans la distribution.
+
+L’écart-type est relativement élevé (247,2), traduisant une forte dispersion des ventes autour de la moyenne. Cela reflète la sensibilité du marché automobile aux fluctuations conjoncturelles et aux chocs économiques.
+
+Les valeurs extrêmes confirment cette variabilité : les ventes varient entre un minimum de 670,47 et un maximum de 1898,89, ce qui indique des amplitudes importantes au cours de la période étudiée.
+
+La skewness négative (-0,63) met en évidence une asymétrie à gauche, ce qui signifie que les valeurs faibles (chutes de ventes) sont plus marquées ou plus fréquentes que les valeurs exceptionnellement élevées. Cela peut s’expliquer par des épisodes de crise économique ou de choc de demande, comme la crise financière de 2008 ou la pandémie de 2020.
+
+Malgré la correction des points atypiques, la distribution conserve une certaine asymétrie, ce qui montre que les fluctuations extrêmes font partie intégrante de la dynamique du marché automobile.
+
 ```{r}
 df <- tibble(value = as.numeric(yy_corrigee))
 ggplot(
@@ -153,13 +167,15 @@ ggplot(
   labs(title = "Boxplot de la série corrigée", y = "Valeur") +
   theme_minimal()
 ```
+Le boxplot met en évidence une dispersion importante des ventes autour de la médiane (environ 1400 milliers d’unités), confirmant la forte variabilité du marché automobile.
+On observe également une valeur atypique basse, liée à des épisodes de chute des ventes lors de crises économiques, notamment en 2008-2009 et en 2020.
+Enfin, la distribution est légèrement asymétrique vers le bas, en cohérence avec la skewness négative.
 
 ## D) Détection de la saisonalité 
 
 ```{r}
 dyy <- diff(yy_corrigee, differences = 1)
 ```
-
 
 ```{r}
 plot(yy_corrigee,
@@ -194,7 +210,7 @@ seasdum(yy_corrigee)
 
 ```
 
-Afin de tester la saisonnalité pour ensuite savoir s'il est nécessaire ou non de désaisonnaliser la série, nous testons sous l'hypothèse nulle d'absence de saisonnalité le test de webel-Ollech ainsi que le F-test sur des varaibles dichotomiques saisonnières. Les deux test affirme par leurs p-value égale à 0 la présence de saisonnalité.
+Afin de tester la saisonnalité pour ensuite savoir s'il est nécessaire ou non de désaisonnaliser la série, nous testons sous l'hypothèse nulle d'absence de saisonnalité le test de webel-Ollech ainsi que le F-test sur des varaibles dichotomiques saisonnières.Les deux tests rejettent l’hypothèse nulle d’absence de saisonnalité (p-value ≈ 0), confirmant la présence d’une saisonnalité significative.
 
 
 
@@ -203,6 +219,8 @@ L’ensemble des analyses, visuelles et statistiques, confirme la présence d’
 
 
 
+## E) Désaisonnalisation et décomposition de la série corrigée 
+
 Tout d'abord avant toute modélisation on cherche à savoir si nous sommes en présence d'un schéma additif ou multiplicatif.
 Nous allons faire ce choix grâce au test de log-level.
 
@@ -210,12 +228,12 @@ Nous allons faire ce choix grâce au test de log-level.
 myregx13 <- regarima_x13(yy_corrigee, spec="RG5c")
 s_transform(myregx13)
 ```
-Le résultat nous informe de ne pas réaliser une transformation en log et la différence d'AICc entre la spécification en log et niveau est de -2 
+Le test log-level indique qu’aucune transformation logarithmique n’est nécessaire, ce qui suggère un schéma de décomposition additif.
 
 ```{r}
 summary(myregx13)
 ```
-Ce résultat nous indique que il n'y a pas eu de transformation log, de plus il affirme qu'il y a des effets de JOV ainsi que de l'année bisextile mais pas d'éffet de paque 
+Le modèle prend en compte des effets calendaires, notamment les jours ouvrables et les années bissextiles,mais pas d'éffet de paque, ce qui est cohérent pour une série de ventes mensuelles.  
 
 ```{r}
 ggtsdisplay(yy_corrigee)
@@ -228,7 +246,6 @@ ggseasonplot(yy_corrigee)
 ```
 
 
-## E) Désaisonnalisation et décomposition de la série corrigée 
 
 
 ```{r}
@@ -238,11 +255,215 @@ summary(mysax13$regarima)
 mysax13
 plot(mysax13$final)
 ```
+Le modèle retenu par la procédure X13-SARIMA-SEATS est un SARIMA(0,1,1)(1,1,1)₁₂.
+Cela signifie que la série a été différenciée une fois au niveau (d = 1) et une fois de manière saisonnière (D = 1), ce qui confirme la présence d’une tendance et d’une saisonnalité annuelle.
+
+Le test log-level indique qu’aucune transformation logarithmique n’est nécessaire, ce qui correspond à un schéma de décomposition additif.
+
+Le modèle intègre des effets calendaires, notamment les jours ouvrables et les années bissextiles, ce qui est pertinent pour une série de ventes mensuelles. En revanche, aucun effet de Pâques n’est retenu.
+
+Les coefficients ARIMA estimés sont tous hautement significatifs, ce qui indique que le modèle capte correctement la dynamique de la série.
+En particulier, la composante saisonnière (BTheta) est très significative, ce qui confirme la forte saisonnalité des ventes de véhicules.
+
+Les statistiques de diagnostic (M-statistics et Q) sont toutes inférieures aux seuils critiques, ce qui indique une bonne qualité de décomposition.
+
+De plus, les tests de saisonnalité résiduelle ne détectent aucune saisonnalité restante dans la série désaisonnalisée, ce qui confirme l’efficacité de la méthode X13.
+
+
+
+
+
+La décomposition X13-SARIMA-SEATS permet d’isoler les différentes composantes de la série.
+La série désaisonnalisée apparaît nettement plus lisse que la série brute, ce qui confirme l’efficacité de la correction des variations saisonnières.
+La composante saisonnière est relativement stable au cours du temps, traduisant un profil annuel régulier des ventes de véhicules.
+La tendance-cycle met en évidence les grandes évolutions du marché, notamment la chute lors de la crise de 2008 et le choc lié à la pandémie en 2020.
+Enfin, la composante irrégulière reste modérée, ce qui indique une bonne qualité de décomposition.
+
 
 # 2/ Prévision de la série saisonnière 
+
+La série utilisée pour les prévisions est la série désaisonnalisée obtenue par la méthode X13-SARIMA-SEATS.
+
 ## A) Estimmations et prévisions des modèles 
-### i) 
+
+### i) les méthodes Naïve, X13-SARIMA-SEATS, STL et  STS.   Commenter les modèles X13-SARIMA-SEATS (modèle SARIMA, log/level,  …) et STS (variance : level, slope, seas, epsilon)  
+
+#### Méthode naïve 
+
+```{r}
+prev_naive <- naive(yy_corrigee, h = 12)
+prev_naive
+plot(prev_naive, main = "Prévision naïve")
+```
+
+
+#### Modèle X13-SARIMA-SEATS
+
+```{r}
+prev_x13 <- mysax13$forecast$sa_f
+prev_x13
+```
+
+
+####  Méthode STL 
+
+```{r}
+decomp_stl <- stl(yy_corrigee, s.window = "periodic")
+plot(decomp_stl)
+
+fit_stl <- stlm(yy_corrigee, s.window = "periodic")
+prev_stl <- forecast(fit_stl, h = h)
+prev_stl
+plot(prev_stl, main = "Prévision par STL")
+```
+
+
+#### Modèle STS 
+
+```{r}
+fit_sts <- StructTS(yy_corrigee)
+fit_sts
+plot(cbind(fitted(fit_sts), residuals(fit_sts)))
+
+prev_sts <- forecast(fit_sts, h = h)
+prev_sts
+plot(prev_sts, main = "Prévision par STS")
+```
+
+
+
+### ii) les méthodes de lissage exponentiel : Holt-Winters, ETS, TBATS,  ADAM ETS et ADAM ETS SARIMA. Commenter ces modèles. 
+
+#### Holt-winter 
+
+```{r}
+fit_hw <- HoltWinters(yy_corrigee, beta = TRUE, gamma = FALSE)
+fit_hw
+
+prev_hw <- forecast(fit_hw, h = 12)
+prev_hw
+plot(prev_hw, main = "Prévision Holt-Winters")
+```
+
+
+#### Modèle ETS 
+
+```{r}
+fit_ets <- ets(yy_corrigee)
+fit_ets
+plot(fit_ets)
+
+prev_ets <- forecast(fit_ets, h = 12)
+prev_ets
+plot(prev_ets, main = "Prévision ETS")
+```
+
+
+#### TBATS 
+
+```{r}
+fit_tbats <- tbats(yy_corrigee)
+fit_tbats
+plot(fit_tbats)
+
+prev_tbats <- forecast(fit_tbats, h = 12)
+prev_tbats
+plot(prev_tbats, main = "Prévision TBATS")
+```
+
+
+#### ADAM ETS 
+
+```{r}
+fit_adam_ets <- auto.adam(yy_corrigee, model = "ZZN", lags = 1)
+fit_adam_ets
+summary(fit_adam_ets)
+plot(fit_adam_ets)
+
+prev_adam_ets <- forecast(fit_adam_ets, h = 12)
+prev_adam_ets
+plot(prev_adam_ets, main = "Prévision ADAM ETS")
+```
+
+#### ADAM ETS + ARIMA 
+
+```{r}
+fit_adam_arima <- auto.adam(
+  yy_corrigee,
+  model = "ZZN",
+  lags = c(1, 12),
+  orders = list(ar = c(3,3), i = c(2), ma = c(3,3)),
+  select = TRUE)
+
+fit_adam_arima
+summary(fit_adam_arima)
+plot(fit_adam_arima)
+
+prev_adam_arima <- forecast(fit_adam_arima, h = 12)
+prev_adam_arima
+plot(prev_adam_arima, main = "Prévision ADAM ETS + ARIMA")
+```
+
+
+### iii) les modèles SARIMA(p,d,q)(P,D,Q)12 .et SSARIMA. Commenter ces modèles
+
+#### SARIMA
+```{r}
+fit_sarima <- auto.arima(yy_corrigee)
+summary(fit_sarima)
+
+prev_sarima <- forecast(fit_sarima, h = 12)
+prev_sarima
+plot(prev_sarima, main = "Prévision SARIMA")
+```
+
+#### SSARIMA 
+
+```{r}
+fit_ssarima <- auto.ssarima(
+  yy_corrigee,
+  lags = c(1,12),
+  orders = list(ar = c(3,3), i = c(2), ma = c(3,3), select = TRUE))
+
+fit_ssarima
+summary(fit_ssarima)
+plot(fit_ssarima)
+
+prev_ssarima <- forecast(fit_ssarima, h = 12)
+prev_ssarima
+plot(prev_ssarima, main = "Prévision SSARIMA")
+```
+
 ## B) Synthèse 
+
+```{r}
+model_comp <- data.frame(
+  Modele = c("X13-SARIMA-SEATS", "ETS", "TBATS", "ADAM ETS", "ADAM ETS + ARIMA", "SARIMA"),
+  AIC = c(
+    mysax13$regarima$aic,
+    fit_ets$aic,
+    fit_tbats$AIC,
+    fit_adam_ets$ic["AIC"],
+    fit_adam_arima$ic["AIC"],
+    AIC(fit_sarima)),
+  AICc = c(
+    mysax13$regarima$aicc,
+    fit_ets$aicc,
+    NA,
+    fit_adam_ets$ic["AICc"],
+    fit_adam_arima$ic["AICc"],
+    fit_sarima$aicc))
+
+model_comp |> 
+  kable("html", caption = "Comparaison des modèles selon les critères AIC et AICc") |>
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+    full_width = FALSE,
+    position = "center")
+```
+
+
+
 
 # 3/ Evolution des prévisions des différents modèles 
 # 4/ Qualité de prévision
