@@ -297,7 +297,7 @@ plot(prev_naive, main = "Prévision naïve")
 #### Modèle X13-SARIMA-SEATS
 
 ```{r}
-prev_x13 <- mysax13$forecast$sa_f
+prev_x13 <- mysax13$final$forecasts[, "sa_f"]
 prev_x13
 ```
 
