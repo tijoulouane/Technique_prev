@@ -504,74 +504,38 @@ df_long <- df_forecasts |>
     names_to = "Méthode",
     values_to = "Valeur"
   )
-
-# Ordre de la légende
-ordre_methodes <- c(
-  "Réalisée",
-  "Naïve",
-  "X13-SARIMA-SEATS",
-  "STL",
-  "STS",
-  "Holt-Winters",
-  "ETS",
-  "TBATS",
-  "ADAM ETS",
-  "ADAM ETS + ARIMA",
-  "SARIMA",
-  "SSARIMA"
+couleurs <- c(
+  "X13.ARIMA.SEATS" = "darkred",
+  "STL" = "blue",
+  "STS" = "forestgreen",
+  "Holt.Winters" = "pink",
+  "ETS" = "steelblue",
+  "TBATS" = "yellow",
+  "ADAM.ETS" = "mediumaquamarine",
+  "ADAM.ETS.ARIMA" = "mediumvioletred",
+  "SARIMA" = "orange",
+  "SSARIMA" = "purple",
+  "Naïve" = "black",
+  "Réalisée" = "red",
+  "X13-SARIMA-SEATS"="tomato",
+  "ADAM ETS + ARIMA"="darkblue"
 )
 
-df_long$Méthode <- factor(df_long$Méthode, levels = ordre_methodes)
-
-# Graphique
-ggplot(df_long, aes(x = Date, y = Valeur, color = Méthode, group = Méthode)) +
-  geom_line(
-    data = subset(df_long, Méthode != "Réalisée"),
-    linewidth = 0.9,
-    alpha = 0.9
-  ) +
-  geom_point(
-    data = subset(df_long, Méthode != "Réalisée"),
-    size = 1.7,
-    alpha = 0.9
-  ) +
-  geom_line(
-    data = subset(df_long, Méthode == "Réalisée"),
-    linewidth = 1.6
-  ) +
-  geom_point(
-    data = subset(df_long, Méthode == "Réalisée"),
-    size = 2.4
-  ) +
+ggplot(df_long, aes(x = Date, y = Valeur, color = Méthode)) +
+  geom_line(linewidth = 1) +
   labs(
-    title = "Évolution des prévisions des différents modèles pour l’année 2025",
-    x = "Date",
-    y = "Ventes prévues (en milliers d’unités)",
-    color = "Méthode"
+    title = "Évolution des prévisions selon les différentes méthodes (2019)",
+    x = NULL, y = NULL
   ) +
-  scale_color_manual(
-    values = c(
-      "Réalisée" = "#D62828",
-      "Naïve" = "#111111",
-      "X13-SARIMA-SEATS" = "#C77DFF",
-      "STL" = "#4361EE",
-      "STS" = "#2A9D8F",
-      "Holt-Winters" = "#7CB518",
-      "ETS" = "#3A86FF",
-      "TBATS" = "#FFBE0B",
-      "ADAM ETS" = "#F4A261",
-      "ADAM ETS + ARIMA" = "#9D4EDD",
-      "SARIMA" = "#FB8500",
-      "SSARIMA" = "#8D99AE"
-    )
-  ) +
-  theme_minimal(base_size = 13) +
+  scale_color_manual(values = couleurs) +
+  theme_minimal(base_size = 14) +
   theme(
-    plot.title = element_text(face = "bold"),
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    legend.position = "right"
+    plot.title = element_text(color = "black"),
+    legend.title = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1)
   )
 
+df_forecasts
 ```
 
 # 4/ Qualité de prévision
