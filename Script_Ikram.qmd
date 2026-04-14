@@ -66,13 +66,19 @@ yy <- ts(data = base$Ventes,
 ```
 
 
-```{r}
+```{r fig.width=10, fig.height=5}
 plot(yy,
      main = "Ventes de véhicules aux États-Unis (TOTALNSA)",
      ylab = "Millions de véhicules",
      xlab = "Temps",
      col  = "steelblue",
      lwd  = 1.5)
+```
+
+
+```{r fig.width=10, fig.height=6}
+# graphique pour visualiser saisonnalité 
+ggseasonplot(yy, col=rainbow(12), year.labels=TRUE)
 ```
 
 ## B) Identification et analyse économique des points atypiques 
@@ -341,6 +347,27 @@ plot(prev_sts, main = "Prévision par STS")
 
 
 
+```{r}
+#parametres qu'on a dans le cours p49 
+# on le mets pas directement sur le coprs de texte mais a mettre dans tableau qui va resumer les parametres
+var_sts <- data.frame(
+  Level = round(fit_sts$coef["level"], 3),
+  Slope = round(fit_sts$coef["slope"], 3),
+  Seas = round(fit_sts$coef["seas"], 3),
+  Epsilon = round(fit_sts$coef["epsilon"], 3)
+)
+
+var_sts |>
+  kable("latex", booktabs = TRUE,
+        caption = "Tableau des variances du modèle STS") |>
+  kable_styling(latex_options = c("hold_position"),
+                full_width = FALSE,
+                position = "center")
+
+var_sts
+```
+
+
 ### ii) les méthodes de lissage exponentiel : Holt-Winters, ETS, TBATS,  ADAM ETS et ADAM ETS SARIMA. Commenter ces modèles. 
 
 #### Holt-winters 
@@ -464,6 +491,71 @@ par(mfcol = c(2,2))
 plot(fit_ssarima)
 par(mfcol = c(1,1))
 ```
+
+
+### 
+
+```{r}
+# =========================
+# Tableau 1 : méthodes (i)
+# =========================
+
+tab_methodes_1 <- data.frame(
+  Parametre = c(
+    "Type / spécification",
+    "Log-level / transformation",
+    "Paramètre principal 1",
+    "Paramètre principal 2",
+    "Paramètre principal 3",
+    "Paramètre principal 4"
+  ),
+  `Naïve saisonnière` = c(
+    "snaive",
+    "-",
+    "-",
+    "-",
+    "-",
+    "-"
+  ),
+  `X13-SARIMA-SEATS` = c(
+    "SARIMA(0,1,1)(1,1,1)[12]",
+    "No",
+    "BPhi(1) = -0.4121",
+    "Theta(1) = -0.4968",
+    "BTheta(1) = -1.0000",
+    "AIC = 2477 ; AICc = 2479"
+  ),
+  `STL` = c(
+    "stlm avec STL",
+    "-",
+    "s.window = periodic",
+    "-",
+    "-",
+    "-"
+  ),
+  `STS` = c(
+    "StructTS",
+    "-",
+    "level = 2215.204",
+    "slope = 2.895",
+    "seas = 728.462",
+    "epsilon = 1289.577"
+  ),
+  check.names = FALSE
+)
+
+tab_methodes_1 |>
+  kable("latex", booktabs = TRUE,
+        caption = "Paramètres des méthodes naïve saisonnière, X13-SARIMA-SEATS, STL et STS") |>
+  kable_styling(latex_options = c("hold_position", "scale_down"),
+                full_width = FALSE,
+                position = "center")
+
+tab_methodes_1
+```
+
+
+
 
 
 # 3/ Evolution des prévisions des différents modèles 
@@ -630,7 +722,7 @@ best_model
 
 
 
-```{r}
+```{r fig.width=10, fig.height=5}
 
 # CSPE
 
@@ -657,9 +749,28 @@ cspe_df <- previsions |>
 # Vérification
 unique(cspe_df$Modèle)
 
-# Graphique
-ggplot(cspe_df, aes(x = Mois, y = CSPE, color = Modèle)) +
-  geom_line(linewidth = 1) +
+```
+
+
+
+```{r fig.width=10, fig.height=5}
+ggplot(cspe_df, aes(x = Mois, y = CSPE, color = Modèle, linewidth = Modèle)) +
+  geom_line() +
+  scale_linewidth_manual(
+    values = c(
+      "Naïve" = 1.5,
+      "X13-SARIMA-SEATS" = 1,
+      "STL" = 1.5,
+      "STS" = 1,
+      "Holt-Winters" = 1,
+      "ETS" = 1,
+      "TBATS" = 1,
+      "ADAM ETS" = 1,
+      "ADAM ETS + ARIMA" = 1,
+      "SARIMA" = 1,
+      "SSARIMA" = 1
+    )
+  ) +
   labs(
     title = "Erreur quadratique cumulative (CSPE) par modèle",
     x = NULL,
@@ -671,7 +782,6 @@ ggplot(cspe_df, aes(x = Mois, y = CSPE, color = Modèle)) +
     axis.text.x = element_text(angle = 45, hjust = 1)
   )
 ```
-
 
 # 5/ Test de précision
 ```{r}
