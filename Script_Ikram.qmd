@@ -157,19 +157,9 @@ stats_full |>
   kable_styling(latex_options = c("hold_position"),
                 full_width = FALSE,
                 position = "center")
-  
+stats_full 
 ```
-La série corrigée des points atypiques comporte 240 observations sans valeurs manquantes, ce qui garantit une base de données complète et exploitable pour l’analyse.
 
-Le niveau moyen des ventes de véhicules s’élève à 1367,02 milliers d’unités, tandis que la médiane est légèrement supérieure (1408,54). Cette différence suggère une légère asymétrie dans la distribution.
-
-L’écart-type est relativement élevé (247,2), traduisant une forte dispersion des ventes autour de la moyenne. Cela reflète la sensibilité du marché automobile aux fluctuations conjoncturelles et aux chocs économiques.
-
-Les valeurs extrêmes confirment cette variabilité : les ventes varient entre un minimum de 670,47 et un maximum de 1898,89, ce qui indique des amplitudes importantes au cours de la période étudiée.
-
-La skewness négative (-0,63) met en évidence une asymétrie à gauche, ce qui signifie que les valeurs faibles (chutes de ventes) sont plus marquées ou plus fréquentes que les valeurs exceptionnellement élevées. Cela peut s’expliquer par des épisodes de crise économique ou de choc de demande, comme la crise financière de 2008 ou la pandémie de 2020.
-
-Malgré la correction des points atypiques, la distribution conserve une certaine asymétrie, ce qui montre que les fluctuations extrêmes font partie intégrante de la dynamique du marché automobile.
 
 ```{r}
 df <- tibble(value = as.numeric(yy_corrigee))
@@ -179,9 +169,6 @@ ggplot(
   labs(title = "Boxplot de la série corrigée", y = "Valeur") +
   theme_minimal()
 ```
-Le boxplot met en évidence une dispersion importante des ventes autour de la médiane (environ 1400 milliers d’unités), confirmant la forte variabilité du marché automobile.
-On observe également une valeur atypique basse, liée à des épisodes de chute des ventes lors de crises économiques, notamment en 2008-2009 et en 2020.
-Enfin, la distribution est légèrement asymétrique vers le bas, en cohérence avec la skewness négative.
 
 
 ## D) Détection de la saisonnalité 
@@ -202,13 +189,13 @@ plot(yy_corrigee,
      col = "steelblue",
      lwd = 1.5)
 ```
-On observe sur le graphique des fluctuations régulières qui semblent se répéter chaque année, ce qui suggère la présence d’une composante saisonnière.
+
 
 ```{r}
 decomp <- decompose(yy_corrigee)
 plot(decomp)
 ```
-La décomposition met en évidence une composante saisonnière stable au cours du temps, confirmant visuellement la présence de saisonnalité dans la série.
+
 
 ```{r}
 ########################
@@ -234,15 +221,11 @@ seasdum(yy_corrigee)
 
 ```
 
-Afin de tester la saisonnalité pour ensuite savoir s'il est nécessaire ou non de désaisonnaliser la série, nous testons sous l'hypothèse nulle d'absence de saisonnalité le test de webel-Ollech ainsi que le F-test sur des varaibles dichotomiques saisonnières.Les deux tests rejettent l’hypothèse nulle d’absence de saisonnalité (p-value ≈ 0), confirmant la présence d’une saisonnalité significative.
-
-L’ensemble des analyses, visuelles et statistiques, confirme la présence d’une saisonnalité dans la série des ventes de véhicules. Cette saisonnalité est annuelle et doit être prise en compte dans les modèles de prévision.
 
 
 ## E) Désaisonnalisation et décomposition de la série corrigée 
 
-Tout d'abord avant toute modélisation on cherche à savoir si nous sommes en présence d'un schéma additif ou multiplicatif.
-Nous allons faire ce choix grâce au test de log-level.
+
 
 ```{r}
 ########################
@@ -253,15 +236,12 @@ myregx13 <- regarima_x13(yy_corrigee, spec="RG5c")
 # affiche le résultat du test de log-level
 s_transform(myregx13)
 ```
-Le test log-level indique qu’aucune transformation logarithmique n’est nécessaire, ce qui suggère un schéma de décomposition additif.
+
 
 ```{r}
 summary(myregx13)
 ```
-Le modèle RegARIMA estimé par X13 retient une spécification SARIMA(0,1,1)(1,1,1)_12. La série est conservée en niveau, car aucune transformation logarithmique n’est retenue. La présence d’une différenciation non saisonnière et d’une différenciation saisonnière indique que la série présente à la fois une tendance et une composante saisonnière mensuelle. Les coefficients ARIMA estimés sont tous statistiquement significatifs, ce qui confirme la pertinence du modèle retenu.
 
-Le prétraitement RegARIMA met également en évidence des effets de calendrier. Le lundi a un effet négatif significatif, tandis que le samedi a un effet positif significatif. L’effet année bissextile est aussi significatif, ce qui montre que la composition du calendrier influence la série.
-Les critères d’information obtenus sont AIC = 2477 et AICc = 2479 ; ils serviront à comparer ce modèle aux autres modèles estimés.
 
 ```{r}
 ggtsdisplay(yy_corrigee)
@@ -287,11 +267,7 @@ mysax13 <- x13(yy_corrigee, myspec)
 mysax13
 plot(mysax13$final)
 ```
-La procédure X13 permet ensuite d’obtenir la décomposition de la série en composantes tendance-cycle, saisonnière et irrégulière. Le graphique comparant la série brute, la série désaisonnalisée et la tendance montre que la correction saisonnière réduit nettement les fluctuations mensuelles. La série CVS apparaît plus lisse, tandis que la tendance met en évidence une baisse marquée autour de 2008-2009, puis une reprise progressive, interrompue par des perturbations autour de 2020-2021 avant une remontée récente.
 
-Le graphique des composantes confirme l’existence d’une saisonnalité régulière et récurrente, ainsi que d’effets calendaires plus modérés. La composante irrégulière reste globalement limitée, malgré quelques chocs ponctuels.
-
-Les diagnostics de X13 confirment la présence d’une saisonnalité identifiable dans la série. En revanche, les tests de saisonnalité résiduelle donnent des p-values supérieures à 5 %, ce qui signifie qu’il ne subsiste pas de saisonnalité significative après ajustement. On peut donc conclure que la désaisonnalisation obtenue par X13 est satisfaisante.
 
 
 
@@ -300,7 +276,6 @@ Les diagnostics de X13 confirment la présence d’une saisonnalité identifiabl
 
 ## A) Estimations et prévisions des modèles 
 
-Afin d’évaluer les performances prédictives des modèles, la série a été scindée en un échantillon d’estimation allant jusqu’en décembre 2024 et un échantillon de test correspondant aux 12 mois de l’année 2025. Les modèles sont estimés sur la première sous-période, puis utilisés pour prévoir l’année 2025.
 
 ```{r}
 # toutes les données jusqu’à fin 2024
