@@ -66,13 +66,19 @@ yy <- ts(data = base$Ventes,
 ```
 
 
-```{r}
+```{r fig.width=10, fig.height=5}
 plot(yy,
      main = "Ventes de véhicules aux États-Unis (TOTALNSA)",
      ylab = "Millions de véhicules",
      xlab = "Temps",
      col  = "steelblue",
      lwd  = 1.5)
+```
+
+
+```{r fig.width=10, fig.height=6}
+# graphique pour visualiser saisonnalité 
+ggseasonplot(yy, col=rainbow(12), year.labels=TRUE)
 ```
 
 ## B) Identification et analyse économique des points atypiques 
@@ -157,19 +163,9 @@ stats_full |>
   kable_styling(latex_options = c("hold_position"),
                 full_width = FALSE,
                 position = "center")
-  
+stats_full 
 ```
-La série corrigée des points atypiques comporte 240 observations sans valeurs manquantes, ce qui garantit une base de données complète et exploitable pour l’analyse.
 
-Le niveau moyen des ventes de véhicules s’élève à 1367,02 milliers d’unités, tandis que la médiane est légèrement supérieure (1408,54). Cette différence suggère une légère asymétrie dans la distribution.
-
-L’écart-type est relativement élevé (247,2), traduisant une forte dispersion des ventes autour de la moyenne. Cela reflète la sensibilité du marché automobile aux fluctuations conjoncturelles et aux chocs économiques.
-
-Les valeurs extrêmes confirment cette variabilité : les ventes varient entre un minimum de 670,47 et un maximum de 1898,89, ce qui indique des amplitudes importantes au cours de la période étudiée.
-
-La skewness négative (-0,63) met en évidence une asymétrie à gauche, ce qui signifie que les valeurs faibles (chutes de ventes) sont plus marquées ou plus fréquentes que les valeurs exceptionnellement élevées. Cela peut s’expliquer par des épisodes de crise économique ou de choc de demande, comme la crise financière de 2008 ou la pandémie de 2020.
-
-Malgré la correction des points atypiques, la distribution conserve une certaine asymétrie, ce qui montre que les fluctuations extrêmes font partie intégrante de la dynamique du marché automobile.
 
 ```{r}
 df <- tibble(value = as.numeric(yy_corrigee))
@@ -179,9 +175,6 @@ ggplot(
   labs(title = "Boxplot de la série corrigée", y = "Valeur") +
   theme_minimal()
 ```
-Le boxplot met en évidence une dispersion importante des ventes autour de la médiane (environ 1400 milliers d’unités), confirmant la forte variabilité du marché automobile.
-On observe également une valeur atypique basse, liée à des épisodes de chute des ventes lors de crises économiques, notamment en 2008-2009 et en 2020.
-Enfin, la distribution est légèrement asymétrique vers le bas, en cohérence avec la skewness négative.
 
 
 ## D) Détection de la saisonnalité 
@@ -202,13 +195,13 @@ plot(yy_corrigee,
      col = "steelblue",
      lwd = 1.5)
 ```
-On observe sur le graphique des fluctuations régulières qui semblent se répéter chaque année, ce qui suggère la présence d’une composante saisonnière.
+
 
 ```{r}
 decomp <- decompose(yy_corrigee)
 plot(decomp)
 ```
-La décomposition met en évidence une composante saisonnière stable au cours du temps, confirmant visuellement la présence de saisonnalité dans la série.
+
 
 ```{r}
 ########################
@@ -234,15 +227,11 @@ seasdum(yy_corrigee)
 
 ```
 
-Afin de tester la saisonnalité pour ensuite savoir s'il est nécessaire ou non de désaisonnaliser la série, nous testons sous l'hypothèse nulle d'absence de saisonnalité le test de webel-Ollech ainsi que le F-test sur des varaibles dichotomiques saisonnières.Les deux tests rejettent l’hypothèse nulle d’absence de saisonnalité (p-value ≈ 0), confirmant la présence d’une saisonnalité significative.
-
-L’ensemble des analyses, visuelles et statistiques, confirme la présence d’une saisonnalité dans la série des ventes de véhicules. Cette saisonnalité est annuelle et doit être prise en compte dans les modèles de prévision.
 
 
 ## E) Désaisonnalisation et décomposition de la série corrigée 
 
-Tout d'abord avant toute modélisation on cherche à savoir si nous sommes en présence d'un schéma additif ou multiplicatif.
-Nous allons faire ce choix grâce au test de log-level.
+
 
 ```{r}
 ########################
@@ -253,15 +242,12 @@ myregx13 <- regarima_x13(yy_corrigee, spec="RG5c")
 # affiche le résultat du test de log-level
 s_transform(myregx13)
 ```
-Le test log-level indique qu’aucune transformation logarithmique n’est nécessaire, ce qui suggère un schéma de décomposition additif.
+
 
 ```{r}
 summary(myregx13)
 ```
-Le modèle RegARIMA estimé par X13 retient une spécification SARIMA(0,1,1)(1,1,1)_12. La série est conservée en niveau, car aucune transformation logarithmique n’est retenue. La présence d’une différenciation non saisonnière et d’une différenciation saisonnière indique que la série présente à la fois une tendance et une composante saisonnière mensuelle. Les coefficients ARIMA estimés sont tous statistiquement significatifs, ce qui confirme la pertinence du modèle retenu.
 
-Le prétraitement RegARIMA met également en évidence des effets de calendrier. Le lundi a un effet négatif significatif, tandis que le samedi a un effet positif significatif. L’effet année bissextile est aussi significatif, ce qui montre que la composition du calendrier influence la série.
-Les critères d’information obtenus sont AIC = 2477 et AICc = 2479 ; ils serviront à comparer ce modèle aux autres modèles estimés.
 
 ```{r}
 ggtsdisplay(yy_corrigee)
@@ -287,11 +273,7 @@ mysax13 <- x13(yy_corrigee, myspec)
 mysax13
 plot(mysax13$final)
 ```
-La procédure X13 permet ensuite d’obtenir la décomposition de la série en composantes tendance-cycle, saisonnière et irrégulière. Le graphique comparant la série brute, la série désaisonnalisée et la tendance montre que la correction saisonnière réduit nettement les fluctuations mensuelles. La série CVS apparaît plus lisse, tandis que la tendance met en évidence une baisse marquée autour de 2008-2009, puis une reprise progressive, interrompue par des perturbations autour de 2020-2021 avant une remontée récente.
 
-Le graphique des composantes confirme l’existence d’une saisonnalité régulière et récurrente, ainsi que d’effets calendaires plus modérés. La composante irrégulière reste globalement limitée, malgré quelques chocs ponctuels.
-
-Les diagnostics de X13 confirment la présence d’une saisonnalité identifiable dans la série. En revanche, les tests de saisonnalité résiduelle donnent des p-values supérieures à 5 %, ce qui signifie qu’il ne subsiste pas de saisonnalité significative après ajustement. On peut donc conclure que la désaisonnalisation obtenue par X13 est satisfaisante.
 
 
 
@@ -300,7 +282,6 @@ Les diagnostics de X13 confirment la présence d’une saisonnalité identifiabl
 
 ## A) Estimations et prévisions des modèles 
 
-Afin d’évaluer les performances prédictives des modèles, la série a été scindée en un échantillon d’estimation allant jusqu’en décembre 2024 et un échantillon de test correspondant aux 12 mois de l’année 2025. Les modèles sont estimés sur la première sous-période, puis utilisés pour prévoir l’année 2025.
 
 ```{r}
 # toutes les données jusqu’à fin 2024
@@ -312,7 +293,7 @@ yy_test  <- window(yy_corrigee, start = c(2025, 1), end = c(2025, 12))
 
 ### (i) Méthode de désaisonnalitées 
 
-#### Méthode naïve 
+#### Méthode naïve saisonnière 
 
 ```{r}
 ## Prevision sur la série corrigé des outliers sur une année 
@@ -339,7 +320,7 @@ myregx13$residuals.stat
 
 
 
-####  Méthode STL 
+####  Modèle STL 
 
 ```{r}
 decomp_stl <- stl(yy_train, s.window = "periodic")
@@ -366,9 +347,30 @@ plot(prev_sts, main = "Prévision par STS")
 
 
 
-### ii) les méthodes de lissage exponentiel : Holt-Winters, ETS, TBATS,  ADAM ETS et ADAM ETS SARIMA. Commenter ces modèles. 
+```{r}
+#parametres qu'on a dans le cours p49 
+# on le mets pas directement sur le coprs de texte mais a mettre dans tableau qui va resumer les parametres
+var_sts <- data.frame(
+  Level = round(fit_sts$coef["level"], 3),
+  Slope = round(fit_sts$coef["slope"], 3),
+  Seas = round(fit_sts$coef["seas"], 3),
+  Epsilon = round(fit_sts$coef["epsilon"], 3)
+)
 
-#### Holt-winters 
+var_sts |>
+  kable("latex", booktabs = TRUE,
+        caption = "Tableau des variances du modèle STS") |>
+  kable_styling(latex_options = c("hold_position"),
+                full_width = FALSE,
+                position = "center")
+
+var_sts
+```
+
+
+### ii) Méthodes de lissage exponentiel 
+
+#### Modèle Holt-winters saisonnier 
 
 ```{r}
 fit_hw <- HoltWinters(yy_train, seasonal = "add")
@@ -396,7 +398,7 @@ plot(prev_ets, main = "Prévision ETS")
 
 
 
-#### TBATS 
+#### Modèle TBATS 
 
 
 
@@ -422,7 +424,7 @@ la saisonnalité
 
 demander a Ikram diapo tbats
 
-#### ADAM ETS 
+#### Modèle ADAM ETS 
 
 ```{r}
 # ADAM ETS (ici sortie de code avec alpha, beta, aic bic etc en annexe qu'on resume ensuite dans un tableau)
@@ -437,7 +439,7 @@ prev_adam_ets
 plot(prev_adam_ets, main = "Prévision ADAM ETS")
 ```
 
-#### ADAM ETS + ARIMA 
+#### Modèle ADAM ETS + ARIMA 
 
 ```{r}
 fit_adam_arima <- auto.adam(
@@ -457,9 +459,9 @@ plot(prev_adam_arima, main = "Prévision ADAM ETS + ARIMA")
 ```
 
 
-### iii) les modèles SARIMA(p,d,q)(P,D,Q)12 .et SSARIMA. Commenter ces modèles
+### iii) Modèles autorégressifs saisonniers
 
-#### SARIMA
+#### Modèle SARIMA
 ```{r}
 fit_sarima <- auto.arima(yy_train)
 summary(fit_sarima)
@@ -469,7 +471,7 @@ prev_sarima
 plot(prev_sarima, main = "Prévision SARIMA")
 ```
 
-#### SSARIMA 
+#### Modèle SSARIMA 
 
 ```{r}
 fit_ssarima <- auto.ssarima(
@@ -489,6 +491,71 @@ par(mfcol = c(2,2))
 plot(fit_ssarima)
 par(mfcol = c(1,1))
 ```
+
+
+### 
+
+```{r}
+# =========================
+# Tableau 1 : méthodes (i)
+# =========================
+
+tab_methodes_1 <- data.frame(
+  Parametre = c(
+    "Type / spécification",
+    "Log-level / transformation",
+    "Paramètre principal 1",
+    "Paramètre principal 2",
+    "Paramètre principal 3",
+    "Paramètre principal 4"
+  ),
+  `Naïve saisonnière` = c(
+    "snaive",
+    "-",
+    "-",
+    "-",
+    "-",
+    "-"
+  ),
+  `X13-SARIMA-SEATS` = c(
+    "SARIMA(0,1,1)(1,1,1)[12]",
+    "No",
+    "BPhi(1) = -0.4121",
+    "Theta(1) = -0.4968",
+    "BTheta(1) = -1.0000",
+    "AIC = 2477 ; AICc = 2479"
+  ),
+  `STL` = c(
+    "stlm avec STL",
+    "-",
+    "s.window = periodic",
+    "-",
+    "-",
+    "-"
+  ),
+  `STS` = c(
+    "StructTS",
+    "-",
+    "level = 2215.204",
+    "slope = 2.895",
+    "seas = 728.462",
+    "epsilon = 1289.577"
+  ),
+  check.names = FALSE
+)
+
+tab_methodes_1 |>
+  kable("latex", booktabs = TRUE,
+        caption = "Paramètres des méthodes naïve saisonnière, X13-SARIMA-SEATS, STL et STS") |>
+  kable_styling(latex_options = c("hold_position", "scale_down"),
+                full_width = FALSE,
+                position = "center")
+
+tab_methodes_1
+```
+
+
+
 
 
 # 3/ Evolution des prévisions des différents modèles 
@@ -655,7 +722,7 @@ best_model
 
 
 
-```{r}
+```{r fig.width=10, fig.height=5}
 
 # CSPE
 
@@ -682,9 +749,28 @@ cspe_df <- previsions |>
 # Vérification
 unique(cspe_df$Modèle)
 
-# Graphique
-ggplot(cspe_df, aes(x = Mois, y = CSPE, color = Modèle)) +
-  geom_line(linewidth = 1) +
+```
+
+
+
+```{r fig.width=10, fig.height=5}
+ggplot(cspe_df, aes(x = Mois, y = CSPE, color = Modèle, linewidth = Modèle)) +
+  geom_line() +
+  scale_linewidth_manual(
+    values = c(
+      "Naïve" = 1.5,
+      "X13-SARIMA-SEATS" = 1,
+      "STL" = 1.5,
+      "STS" = 1,
+      "Holt-Winters" = 1,
+      "ETS" = 1,
+      "TBATS" = 1,
+      "ADAM ETS" = 1,
+      "ADAM ETS + ARIMA" = 1,
+      "SARIMA" = 1,
+      "SSARIMA" = 1
+    )
+  ) +
   labs(
     title = "Erreur quadratique cumulative (CSPE) par modèle",
     x = NULL,
@@ -697,14 +783,14 @@ ggplot(cspe_df, aes(x = Mois, y = CSPE, color = Modèle)) +
   )
 ```
 
-
 # 5/ Test de précision
 ```{r}
-# Benchmark : méthode naïve
-prev_naive <- rep(tail(yy_train, 1), 12)
-error_naive <- as.numeric(yy_test) - prev_naive
+# Benchmark : modèle AR(1)
+model_ar1 <- arima(yy_train, order = c(1,0,0))
+prev_ar1 <- as.numeric(predict(model_ar1, n.ahead = 12)$pred)
+error_ar1 <- as.numeric(yy_test) - prev_ar1
 
-previsions <- df_forecasts |> dplyr::select(-Date, -Réalisée, -Naïve)
+previsions <- df_forecasts |> select(-Date, -Réalisée)
 obs <- as.numeric(yy_test)
 
 results <- data.frame(
@@ -719,7 +805,7 @@ for (mod in colnames(previsions)) {
   err <- obs - pred
   
   dm_result <- tryCatch({
-    dm_test <- forecast::dm.test(err, error_naive, alternative = "less", h = 1)
+    dm_test <- dm.test(err, error_ar1, alternative = "less", h = 1)
     
     data.frame(
       Modèle = mod,
@@ -738,20 +824,19 @@ for (mod in colnames(previsions)) {
   results <- rbind(results, dm_result)
 }
 
-# Ajouter le benchmark naïf
+# Ajouter le benchmark AR(1)
 results <- rbind(
   results,
   data.frame(
-    Modèle = "Naïve",
+    Modèle = "AR(1)",
     DM_stat = NA,
     p_value = NA
   )
 )
 
-results <- results |> dplyr::arrange(p_value)
+results <- results |> arrange(p_value)
 
 print(results)
-
 ```
 
 
