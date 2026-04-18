@@ -1,0 +1,937 @@
+---
+title: "Projet de prévision de la série TOTALNSA"
+subtitle: "Analyse exploratoire, désaisonnalisation et comparaison de modèles de prévision"
+author: "Ikram Louane"
+date: today
+lang: fr
+format:
+  pdf:
+    toc: true
+    toc_depth: 2
+    toc-title: "Sommaire"
+    number-sections: true
+execute:
+  warning: false
+  message: false
+---
+
+
+
+
+```{r}
+# Importer les packages
+library(readr)
+library(dplyr)
+library(tidyr)
+library(forecast)
+library(tsoutliers)
+library(knitr)
+library(kableExtra)
+library(moments)
+library(fBasics)
+library(TSA)
+library(ggplot2)
+library(seasonal)
+library(seastests)
+library(smooth)
+library(RJDemetra)
+
+```
+
+# 1. Analyse exploratoire de la série
+
+## 1.1 Importation et préparation des données
+
+```{r}
+# Importer les données
+base <- read_csv("TOTALNSA.csv")
+```
+
+```{r}
+# Renommer les colonnes 
+base <- base %>%
+  rename(
+    Date = observation_date,
+    Ventes = TOTALNSA
+  )
+
+# Convertir la date au bon format
+base$Date <- as.Date(base$Date)
+```
+
+```{r}
+# Aperçu des données
+head(base)
+tail(base)
+summary(base$Ventes)
+```
+
+## 1.2 Construction de la série temporelle
+
+
+```{r}
+# Création de la série temporelle mensuelle
+yy <- ts(
+  data = base$Ventes,
+  start = c(2006, 1),
+  frequency = 12
+)
+```
+
+
+## 1.3 Visualisation de la série
+
+
+```{r}
+# Représentation de la série brute
+plot(
+  yy,
+  main = "Ventes de véhicules aux États-Unis (TOTALNSA)",
+  ylab = "Millions de véhicules",
+  xlab = "Temps",
+  col  = "steelblue",
+  lwd  = 1.5
+)
+```
+
+```{r}
+# Visualisation de la saisonnalité par année
+ggseasonplot(yy, col = rainbow(12), year.labels = TRUE)
+```
+
+
+## 1.4 Identification des points atypiques
+
+
+```{r}
+# Détecter les points atypiques de la série
+fit <- tso(yy)
+
+# Afficher les résultats
+plot(fit)
+show(fit)
+summary(fit)
+```
+
+
+```{r}
+# tableau récapitulatif des outliers détectés
+outliers_table <- fit$outliers |>
+  dplyr::mutate(
+    Date = as.character(time),
+    Type = type,
+    t_stat = round(tstat, 2)
+  ) |>
+  dplyr::select(Date, Type, t_stat)
+
+# Afficher le tableau
+outliers_table |>
+  kable(
+    "latex",
+    booktabs = TRUE,
+    caption = "Points atypiques détectés dans la série TOTALNSA"
+  ) |>
+  kable_styling(
+    latex_options = c("hold_position"),
+    full_width = FALSE,
+    position = "center"
+  )
+
+outliers_table
+```
+
+
+```{r}
+# Corrrection de la série des points atypiques
+yy_corrigee <- fit$yadj
+
+ 
+plot(yy_corrigee)
+```
+
+
+## 1.5 Statistiques descriptives
+
+
+```{r}
+
+stats_full <- data.frame(
+  Statistique = c(
+    "Nombre d'observations",
+    "Valeurs manquantes",
+    "Minimum",
+    "Maximum",
+    "Moyenne",
+    "Médiane",
+    "Variance",
+    "Écart-type",
+    "Skewness",
+    "Kurtosis"
+  ),
+  Valeur = c(
+    format(length(yy_corrigee), scientific = FALSE),
+    format(sum(is.na(yy_corrigee)), scientific = FALSE),
+    round(min(yy_corrigee), 2),
+    round(max(yy_corrigee), 2),
+    round(mean(yy_corrigee), 2),
+    round(median(yy_corrigee), 2),
+    round(var(yy_corrigee), 2),
+    round(sd(yy_corrigee), 2),
+    round(skewness(yy_corrigee), 2),
+    round(kurtosis(yy_corrigee), 2)
+  ),
+  stringsAsFactors = FALSE
+)
+
+# Afficher le tableau des statistiques
+stats_full |>
+  kable(
+    "latex",
+    booktabs = TRUE,
+    caption = "Statistiques descriptives de la série TOTALNSA corrigée"
+  ) |>
+  kable_styling(
+    latex_options = c("hold_position"),
+    full_width = FALSE,
+    position = "center"
+  )
+
+stats_full
+```
+
+
+```{r}
+# boxplot de la série corrigée
+df <- tibble(value = as.numeric(yy_corrigee))
+
+ggplot(df, aes(y = value)) +
+  geom_boxplot(fill = "tomato", alpha = 0.5) +
+  labs(
+    title = "Boxplot de la série corrigée",
+    y = "Valeur"
+  ) +
+  theme_minimal()
+```
+
+
+## 1.6 Mise en évidence de la saisonnalité
+
+
+```{r}
+# Calcule de la différence première
+dyy <- diff(yy_corrigee, differences = 1)
+
+```
+
+
+```{r}
+# Représentation de la série corrigée
+plot(
+  yy_corrigee,
+  main = "Série corrigée des ventes de véhicules",
+  ylab = "Millions de véhicules",
+  xlab = "Temps",
+  col = "steelblue",
+  lwd = 1.5
+)
+```
+
+```{r}
+# Décomposition de la série en tendance, saisonnalité et aléa
+decomp <- decompose(yy_corrigee)
+plot(decomp)
+```
+
+
+```{r}
+# Périodogramme de la série en niveau et en différence première
+periodogram(
+  yy_corrigee,
+  main = "Périodogramme de la série en niveau"
+)
+
+periodogram(
+  dyy,
+  main = "Périodogramme de la série en différence première"
+)
+```
+
+```{r}
+# Tests de saisonnalité
+combined_test(yy_corrigee)
+seasdum(yy_corrigee)
+```
+
+# 2. Désaisonnalisation et décomposition de la série corrigée
+
+## 2.1 Pré-ajustement avec X13
+
+```{r}
+# Estimer un modèle RegARIMA avec X13
+myregx13 <- regarima_x13(yy_corrigee, spec = "RG5c")
+
+# Afficher le résultat du test log-level
+s_transform(myregx13)
+```
+
+```{r}
+summary(myregx13)
+```
+
+
+## 2.2 Diagnostics graphiques
+
+```{r}
+ggtsdisplay(yy_corrigee)
+```
+
+
+```{r}
+# Visualisation de la saisonnalité de la série corrigée
+ggseasonplot(yy_corrigee)
+```
+
+## 2.3 Procédure complète X13
+
+```{r}
+myspec <- x13_spec("RSA5c")
+mysax13 <- x13(yy_corrigee, myspec)
+
+# Afficher les résultats
+mysax13
+plot(mysax13$final)
+```
+
+# 3. Prévision de la série corrigée des points atypiques
+
+## 3.1 Découpage de l’échantillon
+
+```{r}
+# Définir l'échantillon d'apprentissage : jusqu'à décembre 2024
+yy_train <- window(yy_corrigee, end = c(2024, 12))
+
+# Définir l'échantillon test : les 12 mois de 2025
+yy_test <- window(yy_corrigee, start = c(2025, 1), end = c(2025, 12))
+```
+
+
+## 3.2 Estimation et prévision des modèles
+
+### 3.2.1 Méthodes de désaisonnalisation
+
+
+*Méthode naïve saisonnière*
+
+```{r}
+# Prévoir 12 mois avec la méthode naïve saisonnière
+prev_naive <- snaive(yy_train, h = 12)
+
+prev_naive
+plot(prev_naive, main = "Prévision naïve saisonnière")
+```
+
+***
+
+*Modèle X13-SARIMA-SEATS*
+
+```{r}
+# Estimer le modèle X13 sur l'échantillon d'apprentissage
+myspec_train <- x13_spec("RSA5c")
+mysax13_train <- x13(yy_train, myspec_train)
+
+# Extraire les prévisions
+prev_x13 <- mysax13_train$final$forecasts[, "y_f"]
+```
+
+```{r}
+# Examiner les résidus du modèle X13
+myregx13$residuals
+myregx13$residuals.stat
+```
+
+***
+
+*STL*
+
+```{r}
+# Décomposer la série par STL
+decomp_stl <- stl(yy_train, s.window = "periodic")
+plot(decomp_stl)
+
+# Estimer puis prévoir avec STL
+fit_stl <- stlm(yy_train, s.window = "periodic")
+prev_stl <- forecast(fit_stl, h = 12)
+
+prev_stl
+plot(prev_stl, main = "Prévision par STL")
+```
+
+***
+
+*STS*
+
+```{r}
+fit_sts <- StructTS(yy_train)
+
+fit_sts
+plot(cbind(fitted(fit_sts), residuals(fit_sts)))
+
+# Prévoir 12 mois
+prev_sts <- forecast(fit_sts, h = 12)
+
+prev_sts
+plot(prev_sts, main = "Prévision par STS")
+```
+
+```{r}
+# variances estimées du modèle STS
+var_sts <- data.frame(
+  Level = round(fit_sts$coef["level"], 3),
+  Slope = round(fit_sts$coef["slope"], 3),
+  Seas = round(fit_sts$coef["seas"], 3),
+  Epsilon = round(fit_sts$coef["epsilon"], 3)
+)
+
+# Afficher le tableau des variances
+var_sts |>
+  kable(
+    "latex",
+    booktabs = TRUE,
+    caption = "Variances estimées du modèle STS"
+  ) |>
+  kable_styling(
+    latex_options = c("hold_position"),
+    full_width = FALSE,
+    position = "center"
+  )
+
+var_sts
+```
+
+### 3.2.2 Méthodes de lissage exponentiel
+
+*Holt-Winters*
+
+```{r}
+fit_hw <- HoltWinters(yy_train, seasonal = "add")
+
+fit_hw
+
+# Prévoir 12 mois
+prev_hw <- forecast(fit_hw, h = 12)
+
+prev_hw
+plot(prev_hw, main = "Prévision Holt-Winters additif")
+```
+
+***
+
+*ETS*
+
+```{r}
+fit_ets <- ets(yy_train)
+
+show(fit_ets)
+plot(fit_ets)
+
+# Prévoir 12 mois
+prev_ets <- forecast(fit_ets, h = 12)
+
+prev_ets
+plot(prev_ets, main = "Prévision ETS")
+```
+
+
+***
+
+*TBATS*
+
+```{r}
+fit_tbats <- tbats(yy_train)
+
+fit_tbats
+plot(fit_tbats)
+
+# Prévoir 12 mois
+prev_tbats <- forecast(fit_tbats, h = 12)
+
+prev_tbats
+plot(prev_tbats, main = "Prévision TBATS")
+```
+
+***
+
+*ADAM ETS*
+
+```{r}
+fit_adam_ets <- auto.adam(
+  yy_train,
+  model = "ZZZ",
+  lags = c(1, 12),
+  select = TRUE
+)
+
+fit_adam_ets
+summary(fit_adam_ets)
+plot(fit_adam_ets)
+
+# Prévoir 12 mois
+prev_adam_ets <- forecast(fit_adam_ets, h = 12)
+
+prev_adam_ets
+plot(prev_adam_ets, main = "Prévision ADAM ETS")
+```
+
+***
+
+*ADAM ETS + ARIMA*
+
+```{r}
+fit_adam_arima <- auto.adam(
+  yy_train,
+  model = "ZZZ",
+  lags = c(1, 12),
+  orders = list(ar = c(3, 3), i = c(2), ma = c(3, 3)),
+  select = TRUE
+)
+
+fit_adam_arima
+summary(fit_adam_arima)
+plot(fit_adam_arima)
+
+# Prévoir 12 mois
+prev_adam_arima <- forecast(fit_adam_arima, h = 12)
+
+prev_adam_arima
+plot(prev_adam_arima, main = "Prévision ADAM ETS + ARIMA")
+```
+
+
+### 3.2.3 Modèles SARIMA et SSARIMA
+
+*SARIMA* 
+
+```{r}
+fit_sarima <- auto.arima(yy_train)
+
+summary(fit_sarima)
+
+# Prévoir 12 mois
+prev_sarima <- forecast(fit_sarima, h = 12)
+
+prev_sarima
+plot(prev_sarima, main = "Prévision SARIMA")
+```
+
+***
+
+*SSARIMA*
+
+```{r}
+fit_ssarima <- auto.ssarima(
+  yy_train,
+  lags = c(1, 12),
+  orders = list(ar = c(3, 3), i = c(2), ma = c(3, 3)),
+  select = TRUE
+)
+
+fit_ssarima
+summary(fit_ssarima)
+
+# Prévoir 12 mois
+prev_ssarima <- forecast(fit_ssarima, h = 12)
+
+prev_ssarima
+plot(prev_ssarima, main = "Prévision SSARIMA")
+```
+
+```{r}
+par(mfcol = c(2, 2))
+plot(fit_ssarima)
+par(mfcol = c(1, 1))
+```
+
+
+## 3.3 Tableau récapitulatif des paramètres
+
+
+```{r}
+tab_methodes_1 <- data.frame(
+  Parametre = c(
+    "Type / spécification",
+    "Log-level / transformation",
+    "Paramètre principal 1",
+    "Paramètre principal 2",
+    "Paramètre principal 3",
+    "Paramètre principal 4"
+  ),
+  `Naïve saisonnière` = c(
+    "snaive",
+    "-",
+    "-",
+    "-",
+    "-",
+    "-"
+  ),
+  `X13-SARIMA-SEATS` = c(
+    "SARIMA(0,1,1)(1,1,1)[12]",
+    "No",
+    "BPhi(1) = -0.4121",
+    "Theta(1) = -0.4968",
+    "BTheta(1) = -1.0000",
+    "AIC = 2477 ; AICc = 2479"
+  ),
+  `STL` = c(
+    "stlm avec STL",
+    "-",
+    "s.window = periodic",
+    "-",
+    "-",
+    "-"
+  ),
+  `STS` = c(
+    "StructTS",
+    "-",
+    "level = 2215.204",
+    "slope = 2.895",
+    "seas = 728.462",
+    "epsilon = 1289.577"
+  ),
+  check.names = FALSE
+)
+
+# Afficher le tableau
+tab_methodes_1 |>
+  kable(
+    "latex",
+    booktabs = TRUE,
+    caption = "Paramètres des méthodes naïve saisonnière, X13-SARIMA-SEATS, STL et STS"
+  ) |>
+  kable_styling(
+    latex_options = c("hold_position", "scale_down"),
+    full_width = FALSE,
+    position = "center"
+  )
+
+tab_methodes_1
+```
+
+
+
+
+
+# 4. Évolution des prévisions des différents modèles
+
+
+```{r}
+# Définir l'horizon de prévision
+h <- 12
+
+# Créer les dates de prévision pour l'année 2025
+dates <- seq(as.Date("2025-01-01"), by = "month", length.out = h)
+
+# Extraire les valeurs réellement observées en 2025
+realisee <- as.numeric(window(yy_corrigee, start = c(2025, 1), end = c(2025, 12)))
+
+# Regrouper toutes les prévisions dans une liste
+forecast_list <- list(
+  "Naïve" = as.numeric(prev_naive$mean)[1:h],
+  "X13-SARIMA-SEATS" = as.numeric(prev_x13)[1:h],
+  "STL" = as.numeric(prev_stl$mean)[1:h],
+  "STS" = as.numeric(prev_sts$mean)[1:h],
+  "Holt-Winters" = as.numeric(prev_hw$mean)[1:h],
+  "ETS" = as.numeric(prev_ets$mean)[1:h],
+  "TBATS" = as.numeric(prev_tbats$mean)[1:h],
+  "ADAM ETS" = as.numeric(prev_adam_ets$mean)[1:h],
+  "ADAM ETS + ARIMA" = as.numeric(prev_adam_arima$mean)[1:h],
+  "SARIMA" = as.numeric(prev_sarima$mean)[1:h],
+  "SSARIMA" = as.numeric(prev_ssarima$mean)[1:h],
+  "Réalisée" = realisee
+)
+
+# Vérifier que toutes les séries ont bien 12 valeurs
+sapply(forecast_list, length)
+
+# Construire le tableau des prévisions
+df_forecasts <- tibble(
+  Date = dates,
+  !!!forecast_list
+)
+
+# Vérifier le tableau
+df_forecasts
+```
+
+
+```{r}
+# Passer le tableau au format long pour le graphique
+df_long <- df_forecasts |>
+  pivot_longer(
+    cols = -Date,
+    names_to = "Méthode",
+    values_to = "Valeur"
+  )
+
+# Vérification 
+unique(df_long$Méthode)
+```
+
+```{r}
+#  couleurs du graphique
+couleurs <- c(
+  "Naïve" = "black",
+  "X13-SARIMA-SEATS" = "tomato",
+  "STL" = "blue",
+  "STS" = "forestgreen",
+  "Holt-Winters" = "pink",
+  "ETS" = "steelblue",
+  "TBATS" = "gold",
+  "ADAM ETS" = "mediumaquamarine",
+  "ADAM ETS + ARIMA" = "darkblue",
+  "SARIMA" = "orange",
+  "SSARIMA" = "purple",
+  "Réalisée" = "red"
+)
+
+# Graphique
+ggplot(
+  df_long,
+  aes(x = Date, y = Valeur, color = Méthode, linewidth = Méthode == "Réalisée")
+) +
+  geom_line() +
+  scale_linewidth_manual(
+    values = c(`TRUE` = 1.3, `FALSE` = 0.9),
+    guide = "none"
+  ) +
+  labs(
+    title = "Évolution des prévisions selon les différentes méthodes (2025)",
+    x = NULL,
+    y = NULL
+  ) +
+  scale_color_manual(
+    values = couleurs,
+    breaks = c(
+      "Naïve",
+      "X13-SARIMA-SEATS",
+      "STL",
+      "STS",
+      "Holt-Winters",
+      "ETS",
+      "TBATS",
+      "ADAM ETS",
+      "ADAM ETS + ARIMA",
+      "SARIMA",
+      "SSARIMA",
+      "Réalisée"
+    )
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(color = "black"),
+    legend.title = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
+
+
+# 5. Qualité de prévision
+
+## 5.1 Calcul du MSE et du R2OOS
+
+```{r}
+# Extraction des observations réelles de 2025
+obs <- window(yy_corrigee, start = c(2025, 1), end = c(2025, 12))
+
+# Utiliser la prévision naïve comme benchmark
+naive_pred <- as.numeric(prev_naive$mean)
+
+# Calcule MSE du benchmark
+error_naive <- as.numeric(obs) - naive_pred
+mse_naive <- mean(error_naive^2)
+
+# Garder uniquement les prévisions des modèles
+previsions <- df_forecasts |> select(-Date, -Réalisée)
+
+results <- data.frame(Modèle = character(), MSE = numeric(), R2OOS = numeric())
+
+# Calcule du MSE et le R2OOS pour chaque modèle
+for (mod in colnames(previsions)) {
+  pred <- previsions[[mod]]
+  err <- as.numeric(obs) - pred
+  mse <- mean(err^2)
+  r2oos <- 1 - mse / mse_naive
+
+  results <- rbind(
+    results,
+    data.frame(
+      Modèle = mod,
+      MSE = mse,
+      R2OOS = r2oos
+    )
+  )
+}
+
+results$MSE <- round(results$MSE, 2)
+results$R2OOS <- round(results$R2OOS, 4)
+
+# Afficher le tableau
+results |>
+  kable(
+    "latex",
+    booktabs = TRUE,
+    caption = "Qualité de prévision : MSE et R2OOS des différents modèles"
+  ) |>
+  kable_styling(
+    latex_options = c("hold_position"),
+    full_width = FALSE,
+    position = "center"
+  )
+
+results
+```
+
+
+```{r}
+# Meilleur modèle selon le MSE
+best_model <- results |>
+  filter(Modèle != "Naïve") |>
+  slice_min(MSE, n = 1, with_ties = FALSE)
+
+best_model
+```
+
+## 5.2 Erreur quadratique cumulative (CSPE)
+
+```{r}
+# Convertir les observations réelles en vecteur numérique
+obs <- as.numeric(window(yy_corrigee, start = c(2025, 1), end = c(2025, 12)))
+
+# Garder les prévisions de tous les modèles
+previsions <- df_forecasts |>
+  select(-Date, -Réalisée)
+
+cspe_df <- previsions |>
+  mutate(across(everything(), ~ cumsum((obs - .x)^2))) |>
+  mutate(Mois = seq(as.Date("2025-01-01"), by = "month", length.out = 12)) |>
+  pivot_longer(
+    cols = -Mois,
+    names_to = "Modèle",
+    values_to = "CSPE"
+  )
+
+# Vérifier les modèles présents
+unique(cspe_df$Modèle)
+```
+
+```{r}
+# Graphique 
+ggplot(cspe_df, aes(x = Mois, y = CSPE, color = Modèle, linewidth = Modèle)) +
+  geom_line() +
+  scale_linewidth_manual(
+    values = c(
+      "Naïve" = 1.5,
+      "X13-SARIMA-SEATS" = 1,
+      "STL" = 1.5,
+      "STS" = 1,
+      "Holt-Winters" = 1,
+      "ETS" = 1,
+      "TBATS" = 1,
+      "ADAM ETS" = 1,
+      "ADAM ETS + ARIMA" = 1,
+      "SARIMA" = 1,
+      "SSARIMA" = 1
+    )
+  ) +
+  labs(
+    title = "Erreur quadratique cumulative (CSPE) par modèle",
+    x = NULL,
+    y = "CSPE"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    legend.title = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
+
+# 6. Test de précision des prévisions
+
+```{r}
+# Définir un modèle AR(1) comme benchmark
+model_ar1 <- arima(yy_train, order = c(1, 0, 0))
+prev_ar1 <- as.numeric(predict(model_ar1, n.ahead = 12)$pred)
+error_ar1 <- as.numeric(yy_test) - prev_ar1
+
+# Récupérer les prévisions des modèles
+previsions <- df_forecasts |> select(-Date, -Réalisée)
+obs <- as.numeric(yy_test)
+
+# Diebold-Mariano
+results_dm <- data.frame(
+  Modèle = character(),
+  DM_stat = numeric(),
+  p_value = numeric()
+)
+
+# Effectuer le test pour chaque modèle
+for (mod in colnames(previsions)) {
+  pred <- previsions[[mod]]
+  err <- obs - pred
+
+  dm_result <- tryCatch({
+    dm_test <- dm.test(err, error_ar1, alternative = "less", h = 1)
+
+    data.frame(
+      Modèle = mod,
+      DM_stat = round(as.numeric(dm_test$statistic), 4),
+      p_value = round(dm_test$p.value, 4)
+    )
+  }, error = function(e) {
+    data.frame(
+      Modèle = mod,
+      DM_stat = NA,
+      p_value = NA
+    )
+  })
+
+  results_dm <- rbind(results_dm, dm_result)
+}
+
+
+results_dm <- rbind(
+  results_dm,
+  data.frame(
+    Modèle = "AR(1)",
+    DM_stat = NA,
+    p_value = NA
+  )
+)
+
+results_dm <- results_dm |> arrange(p_value)
+
+# Afficher les résultats
+print(results_dm)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
